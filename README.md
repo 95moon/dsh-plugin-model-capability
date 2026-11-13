@@ -8,6 +8,20 @@
 
 **Model Capability Manager** — manage the `llm-pi-ai` provider routes of DeepSeek Harness (DSH Web) from a dedicated **Model Capability** page in the in-app settings: per-model thinking levels, context window, output cap, input modalities, per-route defaults, gateway compatibility fields, one-click presets, and an EN/中文 switchable UI.
 
+> **v1.5.0 UI redesign (DSH 0.2.2-rc.3).** The page was rebuilt as plain React with DSH theme tokens; it no longer uses the old inline `currentColor` styling. Routes come first, each route has **Models / Connection / Compatibility / Advanced** tabs, model editing happens in a focused dialog with an explicit **Save**, presets show exactly what they will change, and snapshots/sync are separate cards. Buttons now have primary/secondary/ghost/danger variants, hover and keyboard-focus states. If a route points at `127.0.0.1` (for example a route injected by **Kakou / 卡扣AI管家** or **cc switch**), the Connection tab explains that those tools rewrite the route when they switch models.
+
+## 从哪里来：Kakou / cc switch 如何注入模型
+
+这类工具并不会“修改 DSH 源码”，它们改的是**当前 profile 的配置层**：
+
+- `~/.dsh/profiles/<profile>/cordis.patch.yml` 里的 `llm-pi-ai` 行（提供商、`baseURL`、模型列表、`compat`、`reasoningEfforts` 等）；
+- 有些工具还会改 `agent-default-model`，把默认模型指向注入的 provider；
+- 本地中转通常监听 `127.0.0.1:<port>`，DSH 通过 `openai-completions` 等协议访问它，密钥放在 `apiKeyEnv` 指向的环境变量或 DSH 凭据里；
+- 切换模型前，Kakou 会把原配置备份到 `~/.dsh/.kakou-harness-backups/`，并把恢复所需的信息写进 `~/.dsh/.kakou-harness.json`。
+
+因此本页编辑的是**同一份 `llm-pi-ai` 配置**。如果切换工具在外部重写了这条路由，本页的修改可能被覆盖；Route 标签里的提示会说明这一点。想长期保留自定义参数，可以先用本页的“配置快照”保存一份，切换后再恢复。
+
+
 [简体中文说明](./docs/README-zh.md) · [Report Bug](https://github.com/yuioi666/dsh-plugin-model-capability/issues) · [Request Feature](https://github.com/yuioi666/dsh-plugin-model-capability/issues/new?template=feature_request.md)
 
 ---
@@ -54,8 +68,8 @@ This plugin gives you a GUI for all of it, plus **one-click presets** that bake 
   - `name`, `contextWindow`, `maxTokens` — capacity fields accept plain numbers or `K`/`M` suffixes (`262144`, `256K`, `1M`).
   - Supports both explicit `models` lists and DSH 0.1.7 catalog-preserving `modelOverrides` entries.
   - `input` modalities — `text` / `image` checkboxes with de-duplication.
-  - Thinking toggle — switch the whole model between reasoning off and the full 7-level matrix (`off/minimal/low/medium/high/xhigh/max`), each level with its own wire value. Empty non-`off` levels are prevented (the Host rejects them), and a one-click **fill all levels with the same value** button is included.
-  - **Apply field to all models** of the route (name / contextWindow / maxTokens / input / reasoningEfforts).
+  - Thinking toggle — switch the whole model between reasoning off and the levels it actually offers. Every level has an explicit **offer this level** checkbox and its own wire value, so the table, the "N thinking levels" badge and the saved config always agree. Quick fills for DeepSeek 4 / OpenAI 5 / Qwen 4 / all 7 are included.
+  - **Apply to all models** of the route (contextWindow / maxTokens / input / reasoningEfforts / compat), with an explicit "overwrites the other N models" hint and failure reporting.
   - Per-model `compat` editor (folded away by default).
 - **Per-route editor**:
   - `displayName`, `baseURL`, `api` (openai-completions / openai-responses / anthropic-messages).
@@ -87,7 +101,7 @@ All writes go through the DSH settings service with revision fencing (`expectedR
 
 ## Installation
 
-Requires a DSH installation with the web app (any profile that serves the browser UI), DSH ≥ 0.1.7-rc.2. Plugin v1.4.0 migrated to the ConfigForms/volatile-Config settings kernel introduced by this DSH line.
+Requires a DSH installation with the web app (any profile that serves the browser UI), DSH ≥ 0.2.2-rc.3. Plugin v1.5.0 targets the ConfigForms/volatile-Config settings kernel of the 0.2.2 line.
 
 > **Upgrading from an older DSH:** DSH 0.1.7 imports legacy `settings.yaml` sections into the active profile once and renames the old file to `settings.yaml.imported`. The plugin's `model-capability` entry participates in that migration; do not copy the imported file back over the profile configuration.
 
